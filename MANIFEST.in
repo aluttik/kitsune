@@ -1,0 +1,3 @@
+include README.rst LICENSE AUTHORS.md Makefile
+recursive-include tests *.py
+global-exclude *.py[co]

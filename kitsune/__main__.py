@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import itertools
-
 import argparse
+import itertools
 import glob
 import os
 

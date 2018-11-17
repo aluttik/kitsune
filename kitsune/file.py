@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import time
-
 import os
+import time
 
 OFFSET_CACHE = {}
 
@@ -13,7 +12,7 @@ class FileTail(object):
     Based on code from Pygtail, a python "port" of logtail2
     Copyright (C) 2011 Brad Greenlee <brad@footle.org>
 
-    https://raw.githubusercontent.com/bgreenlee/pygtail/
+    https://github.com/bgreenlee/pygtail/
     """
 
     def __init__(self, filename):

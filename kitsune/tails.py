@@ -1,53 +1,28 @@
 # -*- coding: utf-8 -*-
+import collections
+import itertools
+import os
+import Queue
+import random
 import sys
 import thread as _thread
-import time
-
-import Queue
-import collections
-import os
-import six
 import threading
 
-from .colors import plain, rainbow
+from .colors import colors, plain, rainbow
 from .file import FileTail
 
 QueueItem = collections.namedtuple("QueueItem", "line exc")
 
 
-def split_buffer(stream):
-    """Given a generator which yields strings and a splitter function,
-    joins all input, splits on the separator and yields each chunk.
-    Unlike string.split(), each chunk includes the trailing
-    separator, except for the last one if none was found on the end
-    of the input.
-    """
-    buffered = six.text_type("")
-
-    for data in stream_as_text(stream):
-        buffered += data
-        while True:
-            index = buffered.find(six.text_type("\n"))
-            if index == -1:
-                break
-            item, buffered = buffered[: index + 1], buffered[index + 1 :]
-            yield item
-
-    if buffered:
-        yield buffered
-
-
-class LineFormatter(object):
-    prefix_width = 0
-
-    def __init__(self, path, color):
-        self.name = os.path.basename(path)
-        self.color = color
-        self.prefix_width = max([self.prefix_width, len(self.name)])
-
-    def __call__(self, line):
-        prefix = self.color(self.name.ljust(self.prefix_width) + " |")
-        return "{} {}".format(prefix, line)
+def consume_iterator(iterator, n=None):
+    "Advance the iterator n-steps ahead. If n is None, consume entirely."
+    # Use functions that consume iterators at C speed.
+    if n is None:
+        # feed the entire iterator into a zero-length deque
+        collections.deque(iterator, maxlen=0)
+    else:
+        # advance to the empty slice starting at position n
+        next(itertools.islice(iterator, n, n), None)
 
 
 def consume_queue(queue):
@@ -67,15 +42,24 @@ def consume_queue(queue):
         yield item.line
 
 
+class LineFormatter(object):
+    prefix_width = 0
+
+    def __init__(self, path, color):
+        self.name = os.path.basename(path)
+        self.color = color
+        self.prefix_width = max([self.prefix_width, len(self.name)])
+
+    def __call__(self, line):
+        prefix = self.color(self.name.ljust(self.prefix_width) + " |")
+        return "{} {}".format(prefix, line)
+
+
 def tail_file(path, formatter, queue):
     tail = FileTail(filename=path)
     try:
-        count = 0
         while True:
             for line in tail:
-                count += 1
-                if count % 1000:
-                    time.sleep(0.001)  # release GIL
                 item = QueueItem(line=formatter(line), exc=None)
                 queue.put(item)
     except Exception as exc:
@@ -103,6 +87,10 @@ class KitsunePrinter(object):
         if not self.paths:
             return
 
+        # if color is enabled then start at a random color
+        if self.color:
+            consume_iterator(rainbow, random.randint(0, len(colors) - 1))
+
         queue = Queue.Queue()
 
         thread_map = {}
@@ -114,7 +102,6 @@ class KitsunePrinter(object):
             for line in consume_queue(queue):
                 for path, tail_thread in list(thread_map.items()):
                     if not tail_thread.is_alive():
-                        print("popping thread: " + path)
                         thread_map.pop(path, None)
 
                 # stop if all the tails are stopped
@@ -130,5 +117,5 @@ class KitsunePrinter(object):
         try:
             self.stream.write(line.strip() + "\n")
         except UnicodeEncodeError:
-            self.stream.write(line.encode("ascii", "replace").decode())
+            self.stream.write(line.encode("ascii", "replace").decode().strip() + "\n")
         self.stream.flush()

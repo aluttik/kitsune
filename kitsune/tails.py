@@ -11,11 +11,16 @@ https://github.com/docker/compose
 import collections
 import itertools
 import os
-import Queue
 import random
 import sys
-import thread as thread_
 import threading
+
+if sys.version[0] == '2':
+    import Queue
+    import thread as _thread
+else:
+    import queue as Queue
+    import _thread
 
 from .colors import colors, plain, rainbow
 from .file import FileTail
@@ -46,7 +51,7 @@ class TailThread(threading.Thread):
     def __new__(cls, *args, **kwargs):
         if cls.queue is None:
             cls.queue = Queue.Queue()
-        obj = super(TailThread, cls).__new__(cls, *args, **kwargs)
+        obj = super(TailThread, cls).__new__(cls)
         return obj
 
     def __init__(self, *args, **kwargs):
@@ -75,7 +80,7 @@ class TailThread(threading.Thread):
             except Queue.Empty:
                 yield None
                 continue
-            except thread_.error:
+            except _thread.error:
                 raise ShutdownException()
 
             if item.exc:

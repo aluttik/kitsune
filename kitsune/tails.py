@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
+"""
+tails.py
+~~~~~~~~
+
+Much of this code is based on code from docker-compose
+Copyright (C) 2014 Docker, Inc.
+
+https://github.com/docker/compose
+"""
 import collections
 import itertools
 import os
 import Queue
 import random
 import sys
-import thread as _thread
+import thread as thread_
 import threading
 
 from .colors import colors, plain, rainbow
@@ -14,32 +23,8 @@ from .file import FileTail
 QueueItem = collections.namedtuple("QueueItem", "line exc")
 
 
-def consume_iterator(iterator, n=None):
-    "Advance the iterator n-steps ahead. If n is None, consume entirely."
-    # Use functions that consume iterators at C speed.
-    if n is None:
-        # feed the entire iterator into a zero-length deque
-        collections.deque(iterator, maxlen=0)
-    else:
-        # advance to the empty slice starting at position n
-        next(itertools.islice(iterator, n, n), None)
-
-
-def consume_queue(queue):
-    """Consume the queue by reading lines off of it and yielding them."""
-    while True:
-        try:
-            item = queue.get(timeout=0.1)
-        except Queue.Empty:
-            yield None
-            continue
-        except _thread.error:
-            raise ShutdownException()
-
-        if item.exc:
-            raise item.exc
-
-        yield item.line
+class ShutdownException(Exception):
+    pass
 
 
 class LineFormatter(object):
@@ -55,24 +40,48 @@ class LineFormatter(object):
         return "{} {}".format(prefix, line)
 
 
-def tail_file(path, formatter, queue):
-    tail = FileTail(filename=path)
-    try:
-        while True:
-            for line in tail:
-                item = QueueItem(line=formatter(line), exc=None)
-                queue.put(item)
-    except Exception as exc:
-        item = QueueItem(line=None, exc=exc)
-        queue.put(item)
-        return
-
-
 class TailThread(threading.Thread):
-    def __init__(self, *args):
-        super(TailThread, self).__init__(target=tail_file, args=args)
+    queue = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls.queue is None:
+            cls.queue = Queue.Queue()
+        obj = super(TailThread, cls).__new__(cls, *args, **kwargs)
+        return obj
+
+    def __init__(self, *args, **kwargs):
+        super(TailThread, self).__init__(target=self.tail, args=args, kwargs=kwargs)
         self.daemon = True
         self.start()
+
+    def tail(self, path, formatter):
+        tail = FileTail(filename=path)
+        try:
+            while True:
+                for line in tail:
+                    item = QueueItem(line=formatter(line), exc=None)
+                    self.queue.put(item)
+        except Exception as exc:
+            item = QueueItem(line=None, exc=exc)
+            self.queue.put(item)
+            return
+
+    @classmethod
+    def consume_queue(cls):
+        """Consume the queue by reading lines off of it and yielding them."""
+        while True:
+            try:
+                item = cls.queue.get(timeout=0.1)
+            except Queue.Empty:
+                yield None
+                continue
+            except thread_.error:
+                raise ShutdownException()
+
+            if item.exc:
+                raise item.exc
+
+            yield item.line
 
 
 class KitsunePrinter(object):
@@ -89,17 +98,16 @@ class KitsunePrinter(object):
 
         # if color is enabled then start at a random color
         if self.color:
-            consume_iterator(rainbow, random.randint(0, len(colors) - 1))
-
-        queue = Queue.Queue()
+            n = random.randint(0, len(colors) - 1)
+            next(itertools.islice(rainbow, n, n), None)
 
         thread_map = {}
         for path, color in zip(self.paths, rainbow if self.color else plain):
             formatter = LineFormatter(path, color)
-            thread_map[path] = TailThread(path, formatter, queue)
+            thread_map[path] = TailThread(path, formatter)
 
         try:
-            for line in consume_queue(queue):
+            for line in TailThread.consume_queue():
                 for path, tail_thread in list(thread_map.items()):
                     if not tail_thread.is_alive():
                         thread_map.pop(path, None)
@@ -110,7 +118,7 @@ class KitsunePrinter(object):
 
                 if line:
                     self.write(line)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, ShutdownException):
             pass
 
     def write(self, line):

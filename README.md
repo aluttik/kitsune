@@ -11,7 +11,7 @@
 
 ## Installation
 
-    pip install kitsune
+    pip install python-kitsune
 
 ## Command Line Interface
 

@@ -11,11 +11,15 @@ https://github.com/docker/compose
 import collections
 import itertools
 import os
-import Queue
 import random
 import sys
 import thread as thread_
 import threading
+
+if sys.version[0] == '2':
+    import Queue as queue
+else:
+    import queue as queue
 
 from .colors import colors, plain, rainbow
 from .file import FileTail

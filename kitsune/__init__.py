@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from .kitsune import KitsunePrinter
+
+__all__ = ["KitsunePrinter"]
 
 __title__ = "python-kitsune"
 __summary__ = "A prettier way to tail multiple files."

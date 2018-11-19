@@ -6,7 +6,7 @@ import glob
 import os
 
 from . import __title__, __version__
-from .tails import KitsunePrinter
+from .kitsune import KitsunePrinter
 
 
 def parse_args(args=None):
@@ -51,7 +51,8 @@ def main():
     paths = list(paths)
 
     printer = KitsunePrinter(paths, uses_color)
-    printer.run()
+    printer.start()
+    printer.wait()
 
 
 if __name__ == "__main__":

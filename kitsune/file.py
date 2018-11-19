@@ -105,7 +105,6 @@ class FileTail(object):
                 tries += 1
 
         if tries == 2:  # broke out of loop manually
-            print("coundn't check if file %r rotated (maybe deleted?)" % self.filename)
             raise StopIteration
 
         # check for copytruncate

@@ -30,3 +30,6 @@ optional arguments:
   -h, --help      Print this help message.
   -V, --version   Show version information.
 ```
+
+## Screenshot
+![Kitsune Example](https://raw.githubusercontent.com/aluttik/kitsune/master/ext/kitsune-example.png)

@@ -11,7 +11,7 @@ from .kitsune import KitsunePrinter
 
 def parse_args(args=None):
     p = argparse.ArgumentParser(
-        prog='kitsune',
+        prog="kitsune",
         description="A prettier way to tail multiple files.",
         add_help=False,
     )

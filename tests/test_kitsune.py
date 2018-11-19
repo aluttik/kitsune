@@ -5,7 +5,8 @@ import time
 
 from kitsune import KitsunePrinter
 
-COLORED_LINE_REGEX = re.compile(r"(\x1b\[3[0-7](?:;1)?m)(\w+\..+ +\|\x1b\[0m .*)\n")
+# longer delay = more reliable tests
+DELAY_SECONDS = 0.5
 
 
 def test_kitsune_printer_plain(tmpdir):
@@ -20,16 +21,16 @@ def test_kitsune_printer_plain(tmpdir):
 
     printer = KitsunePrinter([a.strpath, b.strpath], color=False, stream=buf)
     printer.start()
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     a.write("foo\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     b.write("bar\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     a.write("baz\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     output = buf.getvalue().splitlines()
     assert len(output) == 3
@@ -40,7 +41,7 @@ def test_kitsune_printer_plain(tmpdir):
     printer.stop()
 
     a.write("printer already stopped\n", mode="a+")
-    time.sleep(0.1)
+    time.sleep(DELAY_SECONDS)
 
     output = buf.getvalue().splitlines()
     assert len(output) == 3
@@ -61,19 +62,21 @@ def test_kitsune_printer_rainbow(tmpdir):
 
     printer = KitsunePrinter([a.strpath, b.strpath], color=True, stream=buf)
     printer.start()
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     a.write("foo\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     b.write("bar\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
 
     a.write("baz\n", mode="a+")
-    time.sleep(0.01)
+    time.sleep(DELAY_SECONDS)
+
+    colored_line_regex = re.compile(r"(\x1b\[3[0-7](?:;1)?m)(\w+\..+ +\|\x1b\[0m .*)\n")
 
     value = buf.getvalue()
-    matches = COLORED_LINE_REGEX.findall(value)
+    matches = colored_line_regex.findall(value)
     assert len(matches) == 3
     output = tuple(zip(*matches))[1]
     assert output[0] == "a.log  |\033[0m foo"
@@ -83,9 +86,10 @@ def test_kitsune_printer_rainbow(tmpdir):
     printer.stop()
 
     a.write("printer already stopped\n", mode="a+")
-    time.sleep(0.1)
+    time.sleep(DELAY_SECONDS)
 
-    matches = COLORED_LINE_REGEX.findall(buf.getvalue())
+    value = buf.getvalue()
+    matches = colored_line_regex.findall(value)
     assert len(matches) == 3
     output = tuple(zip(*matches))[1]
     assert output[0] == "a.log  |\033[0m foo"
